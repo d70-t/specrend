@@ -61,12 +61,14 @@ import numpy as np
 
 from .cietables import CIE1931
 
+
 class ColorSystem(object):
     """
     Baseclass for a general color system.
     """
     name = 'UNDEFINED'
     gamma = None
+
     def add_gamma(self, rgb):
         """
         Adds gamma correction to a given rgb image.
@@ -74,11 +76,13 @@ class ColorSystem(object):
         :note: The image must be given in float, normalized to 0...1
         """
         if callable(self.gamma):
-            return self.gamma(rgb) # pylint: disable=not-callable
+            return self.gamma(rgb)  # pylint: disable=not-callable
         else:
             return rgb**(1.0 / self.gamma)
+
     def __repr__(self):
-        return "<%s ColorSystem>"%self.name
+        return "<{} ColorSystem>".format(self.name)
+
 
 class SpecrendColorSystem(ColorSystem):
     """
@@ -89,6 +93,7 @@ class SpecrendColorSystem(ColorSystem):
         self.xyz2rgb = self.cs2mat(csdef)
         self.gamma = csdef["gamma"]
         self.name = csdef["name"]
+
     @classmethod
     def cs2mat(cls, cs):
         """
@@ -146,6 +151,7 @@ class SpecrendColorSystem(ColorSystem):
 
         return np.array(((rx, ry, rz), (gx, gy, gz), (bx, by, bz)))
 
+
 class MatrixColorSystem(ColorSystem):
     """
     ColorSystem defined by a linear transformation w.r.t. XYZ space.
@@ -155,16 +161,16 @@ class MatrixColorSystem(ColorSystem):
         self.xyz2rgb = xyz2rgb
         self.gamma = gamma
 
-# TODO: check a maybe more efficient gamma correction:
-# http://stackoverflow.com/questions/4401122/how-can-each-element-of-a-numpy-array-be-operated-upon-according-to-its-relative (which is inplace)
+
 def gamma_rec709(rgb):
     """
     Compute REC709 Gamma (according to the original specrend.py)
     """
-    cc = 0.018 # pylint: disable=invalid-name
+    cc = 0.018
     return np.where(rgb < cc,
                     rgb * (((1.099 * (cc**0.45)) - 0.099) / cc),
                     (1.099 * (rgb**0.45)) - 0.099)
+
 
 def gamma_srgb(rgb):
     """
@@ -176,6 +182,7 @@ def gamma_srgb(rgb):
     :return: rgb-array WITH gamma, values 0.0...1.0 (nonlinear data)
     """
     return np.where(rgb <= 0.00304, 12.92*rgb, 1.055*(rgb**(1./2.4))-0.055)
+
 
 def gamma_srgb_reverse(rgb):
     """
@@ -189,14 +196,14 @@ def gamma_srgb_reverse(rgb):
     return np.where(rgb <= 0.03928, rgb/12.92, ((rgb+0.055)/1.055)**2.4)
 
 
-#sRGB table is also from: http://www.w3.org/Graphics/Color/sRGB
+# sRGB table is also from: http://www.w3.org/Graphics/Color/sRGB
 CS_SRGB = MatrixColorSystem("sRGB",
                             np.array(((3.2410, -1.5374, -0.4986),
                                       (-0.9692, 1.8760, 0.0416),
                                       (0.0556, -0.2040, 1.0570))),
                             gamma_srgb)
 
-#the following color systems stem from the original specrend.py
+# the following color systems stem from the original specrend.py
 CS_NTSC = SpecrendColorSystem({"name": "NTSC",
                                "xRed": 0.67, "yRed": 0.33,
                                "xGreen": 0.21, "yGreen": 0.71,
@@ -239,6 +246,7 @@ CS_REC709 = SpecrendColorSystem({"name": "CIE REC709",
                                  "xWhite": 0.3127, "yWhite": 0.3291,
                                  "gamma": gamma_rec709})
 
+
 class CieColorTable(object):
     """
     Represents a color sensitivity function for given wavelenths.
@@ -270,22 +278,24 @@ class CieColorTable(object):
         self.wvlns_idx, = np.where((self.wvlns.min() < wvlns) & (wvlns < self.wvlns.max()))
         wvlns_common = wvlns[self.wvlns_idx]
         delta_wvlns_common = np.abs(wvlns_common[1:] - wvlns_common[:-1])
-        delta_wvlns_common = np.hstack(([delta_wvlns_common[0],], delta_wvlns_common))
+        delta_wvlns_common = np.hstack(([delta_wvlns_common[0], ], delta_wvlns_common))
 
         cie_colour_match = np.zeros((len(wvlns_common), 3), float)
         for i in range(3):
             cie_colour_match[:, i] = np.interp(wvlns_common, self.wvlns, self.table[:, i]) * delta_wvlns_common
-            #ensure that the integrals of the colors stay equal
+            # ensure that the integrals of the colors stay equal
             cie_colour_match[:, i] /= cie_colour_match[:, i].sum()
 
         self.wvlns = wvlns_common
         self.table = cie_colour_match
+
 
 def norm_array(arr):
     """
     Returns an array scaled to a maximum value of 1.
     """
     return arr/arr.max()
+
 
 def array_max_dynamic_range(arr):
     """
@@ -296,17 +306,20 @@ def array_max_dynamic_range(arr):
     high = np.nanmax(finite_arr)
     return (arr - low)/(high - low)
 
+
 def float2byte(arr):
     """
     Convert float [0 ... 1]-valued array to uint byte array.
     """
     return (arr*255.).astype('uint8')
 
+
 def set_outliers_to_zero(arr):
     """
     Set all pixels which are bigger than 100 times the median to 0
     """
     arr[arr >= np.median(arr)*100.] = 0.
+
 
 def constrain_rgb(rgb, inplace=False):
     """
@@ -325,6 +338,7 @@ def constrain_rgb(rgb, inplace=False):
             return rgb - white
     else:
         return rgb
+
 
 def postProcessRGB(rgb, colorsystem=CS_SRGB):
     """
@@ -376,10 +390,11 @@ class SpecRGBConverter(object):
         """
         nwvlns = spectrum.shape[-1]
         if nwvlns < self.colortable.nwvlns:
-            raise ValueError('converter is configured for %d wavelenths, but I got only %d!' \
-                             % (self.colortable.nwvlns, nwvlns))
+            raise ValueError(
+                    'converter is configured for {} wavelenths, but I got only {}!'
+                    .format(self.colortable.nwvlns, nwvlns))
         elif nwvlns > self.colortable.nwvlns:
-            #assume shape of ``spectrum`` is according to ``wvlns`` in __init__ and cut.
+            # assume shape of ``spectrum`` is according to ``wvlns`` in __init__ and cut.
             return spectrum[..., self.colortable.wvlns_idx]
         return spectrum
 
@@ -403,8 +418,8 @@ class SpecRGBConverter(object):
         :return: Image in xyz coordinates (not normalized)
         """
 
-        #NOTE: Do NOT normalize XYZ, otherwise the gray information is lost!
-        #      The image must be normalized globally after color conversion.
+        # NOTE: Do NOT normalize XYZ, otherwise the gray information is lost!
+        #       The image must be normalized globally after color conversion.
         return np.tensordot(self.crop_spectrum(spectrum), self.colortable.table, axes=((-1,), (0,)))
 
     def spectrum_to_rgb(self, source, postprocess=True):
