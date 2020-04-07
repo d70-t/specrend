@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="specrend",
-    version="0.0.1",
+    version="0.0.2",
     author="Tobias Kölling",
     author_email="tobias.koelling@physik.uni-muenchen.de",
     description="A tool to transform spectral images into RGB representation.",

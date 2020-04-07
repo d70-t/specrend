@@ -255,15 +255,10 @@ class CieColorTable(object):
     wvlns, table = map(np.array, zip(*CIE1931))
 
     def __init__(self, wvlns):
-        compare = (wvlns != self.wvlns)
-        try:
-            compare = any(compare)
-        except TypeError:
-            pass
-        if compare:
-            self.resample_wvlns(wvlns)
+        if wvlns.shape == self.wvlns.shape and np.all(wvlns == self.wvlns):
+            self.wvlns_idx = slice(0, len(self.wvlns))
         else:
-            self.wvlns_idx = np.arange(0, len(self.wvlns), 1)
+            self.resample_wvlns(wvlns)
         self.nwvlns = len(self.wvlns)
 
     def resample_wvlns(self, wvlns):
@@ -275,7 +270,10 @@ class CieColorTable(object):
         :param wvlns: Wavelengths to resample to.
         """
 
-        self.wvlns_idx, = np.where((self.wvlns.min() < wvlns) & (wvlns < self.wvlns.max()))
+        wvl_low = np.min(np.where(self.wvlns.min() <= wvlns))
+        wvl_high = np.max(np.where(self.wvlns.max() >= wvlns))
+        print("wvl range: {} .. {}".format(wvl_low, wvl_high))
+        self.wvlns_idx = slice(wvl_low, wvl_high + 1)
         wvlns_common = wvlns[self.wvlns_idx]
         delta_wvlns_common = np.abs(wvlns_common[1:] - wvlns_common[:-1])
         delta_wvlns_common = np.hstack(([delta_wvlns_common[0], ], delta_wvlns_common))
